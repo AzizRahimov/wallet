@@ -20,6 +20,7 @@ var ErrPhoneNumberRegistred = errors.New("phone already registred")
 var ErrAmountMustBePositive = errors.New("amount must be greater that zero")
 var ErrAccountNotFound = errors.New("account not found")
 var ErrNotEnoughBalance = errors.New("not enough balance")
+var ErrPaymentNotFound =  errors.New("payment not found")
 
 
 //Service -dasdasdsa
@@ -88,14 +89,10 @@ func (s *Service) Pay(accountID int64, amount types.Money, category types.Paymen
 	if amount <= 0{
 		return nil, ErrAmountMustBePositive
 	}
-
 	var account *types.Account
 
 	for _, acc := range s.accounts {
 		if acc.ID == accountID{
-			// в прошлый раз мы делали 
-			// account := &acc
-			// но как оказалось, он с оригиналом почему то не работал
 			account = acc
 			break
 		}
@@ -110,12 +107,13 @@ func (s *Service) Pay(accountID int64, amount types.Money, category types.Paymen
 		return nil, ErrNotEnoughBalance
 
 	}
+
 	account.Balance -= amount
 	paymentID := uuid.New().String()
 	payment := &types.Payment{
 		ID: paymentID,
-		AccountID: accountID,
-		Amount: amount,
+		AccountID: accountID, // с какого аккаунт было снято 
+		Amount: amount, // тут просто будет сумма на которую мы уменьшели
 		Category: category,
 		Status: types.PaymentStatusInProgress,
 	}
@@ -124,6 +122,9 @@ func (s *Service) Pay(accountID int64, amount types.Money, category types.Paymen
 
 
 }
+
+
+
 
 
 func (s *Service) FindAccountByID(accountID int64) (*types.Account, error) {
@@ -138,4 +139,58 @@ func (s *Service) FindAccountByID(accountID int64) (*types.Account, error) {
 	}
 	return account, nil
 	
+}
+
+
+func (s *Service) FindPaymentByID(paymentID string) (*types.Payment, error) {
+	var payment *types.Payment
+	for _, pay := range s.payments {
+		if pay.ID == paymentID{
+			payment = pay
+			break
+		}
+	}
+	if payment == nil{
+		return nil, ErrPaymentNotFound
+	}
+	return payment, nil
+}
+
+
+// TODO: найти платеж
+// чтобы отменить, нужно найти аккаунт
+func (s *Service) Reject(paymentID string) error {
+	var targetPayment *types.Payment
+
+	// нам нужно именно та ID  с которого мы уменьшали
+	for _, payment := range s.payments{
+		if payment.ID == paymentID{
+			targetPayment = payment
+			break
+		}
+
+	}
+	if targetPayment == nil{
+		return ErrPaymentNotFound
+	}
+	var targetAccount *types.Account
+
+	for _, account := range s.accounts{
+		// и нам нужно найти именно тот аккаунт, с которого все всписали
+		// Например AcID = 2, Payment = 2
+		if account.ID == targetPayment.AccountID{
+			targetAccount = account
+			break
+		}
+	}
+	if targetAccount == nil{
+		return ErrAccountNotFound	
+	}
+	targetPayment.Status = types.PaymentStatusFail
+	targetAccount.Balance += targetPayment.Amount 
+	
+	return nil
+
+
+
 }
