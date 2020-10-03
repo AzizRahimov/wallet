@@ -86,6 +86,7 @@ func (s *Service) Deposit(accountID int64, amount types.Money) error  {
 
 
 func (s *Service) Pay(accountID int64, amount types.Money, category types.PaymentCategory ) (*types.Payment, error)  {
+	
 	if amount <= 0{
 		return nil, ErrAmountMustBePositive
 	}
