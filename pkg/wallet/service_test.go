@@ -70,6 +70,7 @@ func TestService_Reject_success(t *testing.T) {
 
 
 
+
 func TestService_Reject_fail(t *testing.T) {
 	svc := Service{}
 	svc.RegisterAccount("+992938151007")
