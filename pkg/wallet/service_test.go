@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"github.com/AzizRahimov/wallet/pkg/types"
+	"reflect"
 	"testing"
 )
 
@@ -30,6 +31,7 @@ func TestService_FindByAccountByID_notFound(t *testing.T) {
 	svc := Service{}
 	svc.RegisterAccount("+992938151007")
 	account, err := svc.FindAccountByID(2)
+	// тут даст false, так как err (уже имеет что то внутри)
 	if err == nil {
 		t.Errorf("аккаунт не найден, аккаунт: %v", account)
 	}
@@ -37,35 +39,74 @@ func TestService_FindByAccountByID_notFound(t *testing.T) {
 	
 }
 
-
-func TestService_Reject_success(t *testing.T) {
-	// создаем сервис
+func TestFindPaymentByID_success(t *testing.T) {
+	// cоздаем сервис
 	svc := &Service{}
-	
-	// регистрация пользователя
+	// создаем регистрацию
 	phone := types.Phone("+992938151007")
 	account, err := svc.RegisterAccount(phone)
-	if err != nil{
-		t.Errorf("can't register accoount, error = %v", err)
+	if err != nil {
+		t.Errorf("не удалось зарегестрироваться, Ошибка = %v", err)
+		return
 	}
-	// пополняем счет, даем, тот ак, который только что создали
+	// пополняем счет
 	err = svc.Deposit(account.ID, 1000)
 	if err != nil {
-		t.Errorf("Reject(): can't deposit account, error = %v", err)
+		t.Errorf("ошибка при пополнении баланса, ошибка = %v", err)
+		return
 	}
-	//Todo: отнять сумму
+	// осуществляем платеж на его счет
+	pay, err := svc.Pay(account.ID,500, "auto")
+	if err != nil {
+		t.Errorf("ошибка payment error = %v", err)
+		return
+	}
+	got, err := svc.FindPaymentByID(pay.ID)
+	if err != nil{
+		t.Errorf("FindPayment(): error = %v", err)
+		return
+	}
+	if !reflect.DeepEqual(got, pay){
+		t.Errorf("FindPayment(): wrong payment returned = %v", err)
+		return
+	}
+}
 
-	payment, err := svc.Pay(account.ID, 500, "auto")
+
+
+
+func TestService_Reject_success(t *testing.T) {
+	// cоздаем сервис 
+	svc := &Service{}
+	// создаем регистрацию
+	phone := types.Phone("+992938151007")
+	account, err := svc.RegisterAccount(phone)
 	if err != nil {
-		t.Errorf("Reject(): не может создать платеж, ошибка = %v", err)
+			t.Errorf("не удалось зарегестрироваться, Ошибка = %v", err)
+		return
 	}
-	
-	err = svc.Reject(payment.ID)
+	// пополняем счет
+	err = svc.Deposit(account.ID, 1000)
 	if err != nil {
-		t.Errorf("Reject(): error = %v", err)
+		t.Errorf("ошибка при пополнении баланса, ошибка = %v", err)
+		return
+	}
+	// осуществляем платеж на его счет
+	pay, err := svc.Pay(account.ID,500, "auto")
+	if err != nil {
+		t.Errorf("ошибка payment error = %v", err)
+		return
+	}
+	// делаем отмену платежа
+	err = svc.Reject(pay.ID)
+	if err != nil {
+		t.Errorf("ошибка при отмене платежа, Ошибка = %v", err)
+		return
 	}
 
 }
+
+
 
 
 
@@ -92,12 +133,44 @@ func TestService_Reject_fail(t *testing.T) {
 
 	pay, err := svc.FindPaymentByID(payment.ID)
 	if err != nil {
-		t.Errorf("\ngot > %v \nwant > nil", err)
+		t.Errorf("\ngot > %v \nwant > nil",  pay)
 	}
 
-	editPayID := pay.ID + "31231:)"
+	editPayID := "231231"
 	err = svc.Reject(editPayID)
 	if err == nil {
 		t.Errorf("\ngot > %v \nwant > nil", err)
+	}
+}
+
+
+
+func TestService_Repeat_success(t *testing.T) {
+	svc := Service{}
+	svc.RegisterAccount("+99938151007")
+
+	account, err := svc.FindAccountByID(1)
+	if err != nil {
+		t.Errorf("\ngot > %v \nwant > nil", err)
+	}
+
+	err = svc.Deposit(account.ID, 1000_00)
+	if err != nil {
+		t.Errorf("\ngot > %v \nwant > nil", err)
+	}
+
+	payment, err := svc.Pay(account.ID, 100_00, "auto")
+	if err != nil {
+		t.Errorf("\ngot > %v \nwant > nil", err)
+	}
+
+	pay, err := svc.FindPaymentByID(payment.ID)
+	if err != nil {
+		t.Errorf("\ngot > %v \nwant > nil", err)
+	}
+
+	pay, err = svc.Repeat(pay.ID)
+	if err != nil {
+		t.Errorf("Repeat(): Error(): can't pay for an account(%v): %v", pay.ID, err)
 	}
 }
