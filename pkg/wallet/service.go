@@ -4,6 +4,8 @@ import (
 	"errors"
 	"github.com/AzizRahimov/wallet/pkg/types"
 	"github.com/google/uuid"
+	"log"
+	"os"
 )
 
 type Error string
@@ -189,16 +191,10 @@ func (s *Service) Repeat(paymentID string) (*types.Payment, error) {
 	return payment, nil
 }
 
-func (s *Service) FindFavoriteByID(favoriteID string) (*types.Favorite, error) {
-	for _, favorite := range s.favorites {
-		if favorite.ID == favoriteID {
-			return favorite, nil
-		}
-	}
-	return nil, ErrFavoriteNotFound
-}
 
 
+
+// он создает FavoritePayment 
 func (s *Service) FavoritePayment(paymentID string, name string) (*types.Favorite, error) {
 	payment, err := s.FindPaymentByID(paymentID)
 
@@ -219,6 +215,18 @@ func (s *Service) FavoritePayment(paymentID string, name string) (*types.Favorit
 	return newFavorite, nil
 }
 
+
+func (s *Service) FindFavoriteByID(favoriteID string) (*types.Favorite, error) {
+	for _, favorite := range s.favorites {
+		if favorite.ID == favoriteID {
+			return favorite, nil
+		}
+	}
+	return nil, ErrFavoriteNotFound
+}
+
+
+
 //PayFromFavorite для совершения платежа в Избранное
 func (s *Service) PayFromFavorite(favoriteID string) (*types.Payment, error) {
 	favorite, err := s.FindFavoriteByID(favoriteID)
@@ -232,4 +240,28 @@ func (s *Service) PayFromFavorite(favoriteID string) (*types.Payment, error) {
 	}
 
 	return payment, nil
+}
+
+func (s *Service) ExportToFile(path string) error  {
+	file, err := os.Create(path)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+	defer func() {
+		err := file.Close()
+		log.Print(err)
+		return
+	}()
+	account, err := s.FindAccountByID(1)
+	if err != nil {
+		return  ErrAccountNotFound
+	}
+	_, err = file.Write([]byte(account.Phone))
+	if err != nil {
+		log.Print(err)
+
+	}
+
+	return err
 }
