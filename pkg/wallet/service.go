@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"strconv"
 	"errors"
 	"github.com/AzizRahimov/wallet/pkg/types"
 	"github.com/google/uuid"
@@ -253,15 +254,21 @@ func (s *Service) ExportToFile(path string) error  {
 		log.Print(err)
 		return
 	}()
-	account, err := s.FindAccountByID(1)
-	if err != nil {
-		return  ErrAccountNotFound
+	result := ""
+	
+	for _, account := range s.accounts{
+		result += strconv.Itoa(int(account.ID))+ ";"
+		result += string((account.Phone)+ ";")
+		result += strconv.Itoa(int(account.Balance))+ ";"
+
 	}
-	_, err = file.Write([]byte(account.Phone))
+
+
+	_, err = file.Write([]byte(result))
 	if err != nil {
 		log.Print(err)
 
 	}
 
-	return err
+	return nil
 }
