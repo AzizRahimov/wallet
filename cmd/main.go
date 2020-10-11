@@ -6,15 +6,17 @@ import (
 )
 
 func main() {
-	svc := &wallet.Service{}
-	_, err := svc.RegisterAccount("+992938151007")
+	s := &wallet.Service{}
+
+	_, err := s.RegisterAccount("+992938151007")
 	if err != nil {
-		log.Print(err)
+		log.Println(err)
 		return
 	}
-	err = svc.ExportToFile("data/export.txt")
+
+	err = s.ExportToFile("data/export.txt")
 	if err != nil {
-		log.Print(err)
+		log.Println(err)
 		return
 	}
 }

@@ -243,6 +243,7 @@ func (s *Service) PayFromFavorite(favoriteID string) (*types.Payment, error) {
 	return payment, nil
 }
 
+//ExportToFile - для импорта данных
 func (s *Service) ExportToFile(path string) error  {
 	file, err := os.Create(path)
 	if err != nil {
@@ -251,22 +252,20 @@ func (s *Service) ExportToFile(path string) error  {
 	}
 	defer func() {
 		err := file.Close()
-		log.Print(err)
-		return
+		if err != nil {
+			log.Print(err)
+		}
+
+		
 	}()
-	result := ""
-	
 	for _, account := range s.accounts{
-		result += strconv.Itoa(int(account.ID))+ ";"
-		result += string((account.Phone)+ ";")
-		result += strconv.Itoa(int(account.Balance))+ ";"
-
-	}
-
-
-	_, err = file.Write([]byte(result))
-	if err != nil {
-		log.Print(err)
+		_, err := file.Write([]byte(strconv.Itoa(int(account.ID ))+ ":") )
+		_, err = file.Write([]byte(string((account.Phone) + ":")))
+		_, err = file.Write([]byte(strconv.Itoa(int(account.Balance))+ "|"))
+		if err != nil {
+			log.Print(err)
+			return err
+		}
 
 	}
 
