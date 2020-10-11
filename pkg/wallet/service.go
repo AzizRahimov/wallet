@@ -258,15 +258,17 @@ func (s *Service) ExportToFile(path string) error  {
 
 		
 	}()
-	for _, account := range s.accounts{
-		_, err := file.Write([]byte(strconv.Itoa(int(account.ID ))+ ":") )
-		_, err = file.Write([]byte(string((account.Phone) + ":")))
-		_, err = file.Write([]byte(strconv.Itoa(int(account.Balance))+ "|"))
-		if err != nil {
-			log.Print(err)
-			return err
-		}
+	str := ""
+	for _, account := range s.accounts {
+		str += strconv.Itoa(int(account.ID)) + ";"
+		str += string(account.Phone) + ";"
+		str += strconv.Itoa(int(account.Balance)) + "|"
+	}
 
+	_, err = file.Write([]byte(str))
+	if err != nil {
+		log.Println(err)
+		return err
 	}
 
 	return nil
