@@ -1,12 +1,14 @@
 package wallet
 
 import (
+	"io/ioutil"
 	"strconv"
 	"errors"
 	"github.com/AzizRahimov/wallet/pkg/types"
 	"github.com/google/uuid"
 	"log"
 	"os"
+	"strings"
 )
 
 type Error string
@@ -272,4 +274,45 @@ func (s *Service) ExportToFile(path string) error  {
 	}
 
 	return nil
+}
+
+
+func (s *Service) ImportFromFile(path string) error {
+	byteData, err := ioutil.ReadFile(path)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	data := string(byteData)
+
+	splitSlice := strings.Split(data, "|")
+	for _, split := range splitSlice {
+		if split != "" {
+			datas := strings.Split(split, ";")
+
+			id, err := strconv.Atoi(datas[0])
+			if err != nil {
+				log.Println(err)
+				return err
+			}
+
+			balance, err := strconv.Atoi(datas[2])
+			if err != nil {
+				log.Println(err)
+				return err
+			}
+
+			newAccount := &types.Account{
+				ID:      int64(id),
+				Phone:   types.Phone(datas[1]),
+				Balance: types.Money(balance),
+			}
+
+			s.accounts = append(s.accounts, newAccount)
+		}
+	}
+
+	return nil
+
 }
