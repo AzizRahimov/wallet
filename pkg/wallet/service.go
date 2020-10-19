@@ -482,7 +482,7 @@ func (s *Service) actionByAccounts(path string) error {
 				log.Println("can't parse str to int")
 				return err
 			}
-
+			// вот это зачем?
 			account, err := s.FindAccountByID(int64(id))
 			if err != nil {
 				acc, err := s.RegisterAccount(phone)
@@ -615,3 +615,70 @@ func (s *Service) actionByFavorites(path string) error {
 }
 
 
+unc (s *Service) ExportAccountHistory(accountID int64) ([]types.Payment, error) {
+	_, err := s.FindAccountByID(accountID)
+	if err != nil {
+		return nil, ErrAccountNotFound
+	}
+	accountPayments := []types.Payment{}
+
+	for _, payment := range s.payments {
+		if payment.AccountID == accountID {
+			accountPayments = append(accountPayments, types.Payment{
+				ID:        payment.ID,
+				AccountID: payment.AccountID,
+				Amount:    payment.Amount,
+				Category:  payment.Category,
+				Status:    payment.Status,
+			})
+		}
+	}
+
+	return accountPayments, nil
+}
+
+func (s *Service) HistoryToFiles(payments []types.Payment, dir string, records int) error {
+	if len(payments) == 0 {
+		return nil
+	}
+	if len(payments) <= records {
+		exportPayments(payments, dir+"/payments.dump")
+		return nil
+	}
+	var iterator int = 1
+	count := 0
+	for i := 1; i <= len(payments); i++ {
+		strIterator := strconv.Itoa(iterator)
+		fileName := dir + "/payments" + strIterator + ".dump"
+		if i == len(payments) && i-count != records {
+			exportPayments(payments[count:i], fileName)
+		}
+
+		if i-count == records {
+			exportPayments(payments[count:i], fileName)
+			count += records
+			iterator++
+		}
+	}
+	return nil
+}
+
+func exportPayments(payments []types.Payment, path string) error {
+	pay := ""
+
+	for _, payment := range payments {
+
+		pay += payment.ID + ";"
+		pay += strconv.Itoa(int(payment.AccountID)) + ";"
+		pay += strconv.Itoa(int(payment.Amount)) + ";"
+		pay += string(payment.Category) + ";"
+		pay += string(payment.Status) + ";"
+		pay += "\n"
+	}
+	err := WriteToFile(path, pay)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+	return nil
+}
