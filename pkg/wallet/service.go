@@ -683,6 +683,8 @@ func exportPayments(payments []types.Payment, path string) error {
 	}
 	return nil
 }
+
+
 func (s *Service) SumPayments(goroutines int) types.Money {
 	wg := sync.WaitGroup{}
 	mu := sync.Mutex{}
