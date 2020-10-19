@@ -1,10 +1,39 @@
 package wallet
 
 import (
+	"fmt"
 	"github.com/AzizRahimov/wallet/pkg/types"
 	"reflect"
 	"testing"
 )
+
+type testService struct {
+	*Service
+}
+
+type testAccount struct {
+	phone    types.Phone
+	balance  types.Money
+	payments []struct {
+		amount   types.Money
+		category types.PaymentCategory
+	}
+}
+
+var defaultTestAccount = testAccount{
+	phone:   "+992938151007",
+	balance: 10_000_00,
+	payments: []struct {
+		amount   types.Money
+		category types.PaymentCategory
+	}{{
+		amount:   1000_00,
+		category: "auto",
+	}},
+}
+
+
+
 
 func TestService_RegisterAccount(t *testing.T) {
 	svc := &Service{}
@@ -71,6 +100,52 @@ func TestFindPaymentByID_success(t *testing.T) {
 		return
 	}
 }
+
+func newTestService() *testService {
+	return &testService{Service: &Service{}}
+}
+
+func (s *testService) addAccountWithBalance(phone types.Phone, balance types.Money) (*types.Account, error) {
+	account, err := s.RegisterAccount(phone)
+
+	if err != nil {
+		return nil, fmt.Errorf("cant register account, error = %v", err)
+	}
+
+	err = s.Deposit(account.ID, balance)
+
+	if err != nil {
+		return nil, fmt.Errorf("cant deposit account, error = %v", err)
+	}
+
+	return account, nil
+}
+
+func (s *testService) addAccount(data testAccount) (*types.Account, []*types.Payment, error) {
+	account, err := s.RegisterAccount(data.phone)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cant register account %v = ", err)
+	}
+
+	err = s.Deposit(account.ID, data.balance)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cant deposit account %v = ", err)
+	}
+
+	payments := make([]*types.Payment, len(data.payments))
+	for i, payment := range data.payments {
+		payments[i], err = s.Pay(account.ID, payment.amount, payment.category)
+		if err != nil {
+			return nil, nil, fmt.Errorf("cant make payment %v = ", err)
+		}
+	}
+
+	return account, payments, nil
+}
+
+
+
+
 
 
 
@@ -201,5 +276,70 @@ func TestService_Favorite_success_user(t *testing.T) {
 	paymentFavorite, err := svc.PayFromFavorite(favorite.ID)
 	if err != nil {
 		t.Errorf("PayFromFavorite() Error() can't for an favorite(%v): %v", paymentFavorite, err)
+	}
+}
+
+
+func BenchmarkSumPayments(b *testing.B) {
+	s := newTestService()
+
+	_, _, err := s.addAccount(testAccount{
+		phone:   "+992935444994",
+		balance: 1000_000_00,
+		payments: []struct {
+			amount   types.Money
+			category types.PaymentCategory
+		}{
+			{
+				amount:   1000_00,
+				category: "auto",
+			},
+			{
+				amount:   2000_00,
+				category: "auto",
+			},
+			{
+				amount:   3000_00,
+				category: "auto",
+			},
+			{
+				amount:   4000_00,
+				category: "auto",
+			},
+			{
+				amount:   5000_00,
+				category: "auto",
+			},
+			{
+				amount:   6000_00,
+				category: "auto",
+			},
+			{
+				amount:   1250_00,
+				category: "auto",
+			},
+			{
+				amount:   1870_00,
+				category: "auto",
+			},
+			{
+				amount:   9877_00,
+				category: "auto",
+			},
+		},
+	})
+
+	if err != nil {
+		b.Error(err)
+		return
+	}
+
+	want := types.Money(3399700)
+
+	for i := 0; i < b.N; i++ {
+		result := s.SumPayments(6)
+		if result != want {
+			b.Fatalf("invalid result, got = %v want = %v", result, want)
+		}
 	}
 }
