@@ -615,7 +615,7 @@ func (s *Service) actionByFavorites(path string) error {
 }
 
 
-unc (s *Service) ExportAccountHistory(accountID int64) ([]types.Payment, error) {
+func (s *Service) ExportAccountHistory(accountID int64) ([]types.Payment, error) {
 	_, err := s.FindAccountByID(accountID)
 	if err != nil {
 		return nil, ErrAccountNotFound
