@@ -3,6 +3,7 @@ package wallet
 import (
 	"fmt"
 	"github.com/AzizRahimov/wallet/pkg/types"
+	"github.com/google/uuid"
 	"reflect"
 	"testing"
 )
@@ -32,75 +33,6 @@ var defaultTestAccount = testAccount{
 	}},
 }
 
-
-
-
-func TestService_RegisterAccount(t *testing.T) {
-	svc := &Service{}
-	account, err :=  svc.RegisterAccount("+992938151007")
-
-	if err != nil {
-		t.Errorf("не получилось создать ак, получили: %v", account)
-	}
-	
-
-}
-
-func TestService_FindbyAccountById_success(t *testing.T) {
-	svc := Service{}
-	svc.RegisterAccount("+9929351007")
-	account, err := svc.FindAccountByID(1)
-	if err != nil {
-		t.Errorf("не удалось найти аккаунт, получили: %v", account)
-	}
-	
-}
-
-func TestService_FindByAccountByID_notFound(t *testing.T) {
-	svc := Service{}
-	svc.RegisterAccount("+992938151007")
-	account, err := svc.FindAccountByID(2)
-	// тут даст false, так как err (уже имеет что то внутри)
-	if err == nil {
-		t.Errorf("аккаунт не найден, аккаунт: %v", account)
-	}
-	
-	
-}
-
-func TestFindPaymentByID_success(t *testing.T) {
-	// cоздаем сервис
-	svc := &Service{}
-	// создаем регистрацию
-	phone := types.Phone("+992938151007")
-	account, err := svc.RegisterAccount(phone)
-	if err != nil {
-		t.Errorf("не удалось зарегестрироваться, Ошибка = %v", err)
-		return
-	}
-	// пополняем счет
-	err = svc.Deposit(account.ID, 1000)
-	if err != nil {
-		t.Errorf("ошибка при пополнении баланса, ошибка = %v", err)
-		return
-	}
-	// осуществляем платеж на его счет
-	pay, err := svc.Pay(account.ID,500, "auto")
-	if err != nil {
-		t.Errorf("ошибка payment error = %v", err)
-		return
-	}
-	got, err := svc.FindPaymentByID(pay.ID)
-	if err != nil{
-		t.Errorf("FindPayment(): error = %v", err)
-		return
-	}
-	if !reflect.DeepEqual(got, pay){
-		t.Errorf("FindPayment(): wrong payment returned = %v", err)
-		return
-	}
-}
-
 func newTestService() *testService {
 	return &testService{Service: &Service{}}
 }
@@ -121,7 +53,7 @@ func (s *testService) addAccountWithBalance(phone types.Phone, balance types.Mon
 	return account, nil
 }
 
-func (s *testService) addAccount(data testAccount) (*types.Account, []*types.Payment, error) {
+func (s *testService) addAcoount(data testAccount) (*types.Account, []*types.Payment, error) {
 	account, err := s.RegisterAccount(data.phone)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cant register account %v = ", err)
@@ -143,148 +75,271 @@ func (s *testService) addAccount(data testAccount) (*types.Account, []*types.Pay
 	return account, payments, nil
 }
 
+func TestService_FindPaymentByID_success(t *testing.T) {
+	s := newTestService()
 
-
-
-
-
-
-
-func TestService_Reject_success(t *testing.T) {
-	// cоздаем сервис 
-	svc := &Service{}
-	// создаем регистрацию
-	phone := types.Phone("+992938151007")
-	account, err := svc.RegisterAccount(phone)
+	_, payments, err := s.addAcoount(defaultTestAccount)
 	if err != nil {
-			t.Errorf("не удалось зарегестрироваться, Ошибка = %v", err)
+		t.Error(err)
 		return
 	}
-	// пополняем счет
-	err = svc.Deposit(account.ID, 1000)
+
+	payment := payments[0]
+
+	got, err := s.FindPaymentByID(payment.ID)
 	if err != nil {
-		t.Errorf("ошибка при пополнении баланса, ошибка = %v", err)
+		t.Errorf("FindPaymentId(), error %v", err)
 		return
 	}
-	// осуществляем платеж на его счет
-	pay, err := svc.Pay(account.ID,500, "auto")
+
+	if !reflect.DeepEqual(payment, got) {
+		t.Errorf("FindPaymentId(), wrong payment returned %v = ", got)
+	}
+}
+
+func TestService_FindPaymentByID_fail(t *testing.T) {
+	s := newTestService()
+
+	_, _, err := s.addAcoount(defaultTestAccount)
 	if err != nil {
-		t.Errorf("ошибка payment error = %v", err)
+		t.Error(err)
 		return
 	}
-	// делаем отмену платежа
-	err = svc.Reject(pay.ID)
-	if err != nil {
-		t.Errorf("ошибка при отмене платежа, Ошибка = %v", err)
+
+	_, err = s.FindPaymentByID(uuid.New().String())
+	if err == nil {
+		t.Errorf("FindPaymentId(), must return error, returned nil %v = ", err)
 		return
+	}
+
+	if err != ErrPaymentNotFound {
+		t.Errorf("FindPaymentId(), must return ErrPaymentNotFound returned %v = ", err)
+	}
+}
+
+func TestService_FindbyAccountById_success(t *testing.T) {
+	svc := Service{}
+	svc.RegisterAccount("+9929351007")
+	account, err := svc.FindAccountByID(1)
+	if err != nil {
+		t.Errorf("не удалось найти аккаунт, получили: %v", account)
 	}
 
 }
 
-
-
-
-
-
-
-func TestService_Reject_fail(t *testing.T) {
+func TestService_FindByAccountByID_notFound(t *testing.T) {
 	svc := Service{}
 	svc.RegisterAccount("+992938151007")
-
-	account, err := svc.FindAccountByID(1)
-	if err != nil {
-		t.Errorf("\ngot > %v \nwant > nil", err)
-	}
-
-	err = svc.Deposit(account.ID, 1000_00)
-	if err != nil {
-		t.Errorf("\ngot > %v \nwant > nil", err)
-	}
-
-	payment, err := svc.Pay(account.ID, 100_00, "auto")
-	if err != nil {
-		t.Errorf("\ngot > %v \nwant > nil", err)
-	}
-
-	pay, err := svc.FindPaymentByID(payment.ID)
-	if err != nil {
-		t.Errorf("\ngot > %v \nwant > nil",  pay)
-	}
-
-	editPayID := "231231"
-	err = svc.Reject(editPayID)
+	account, err := svc.FindAccountByID(2)
 	if err == nil {
-		t.Errorf("\ngot > %v \nwant > nil", err)
+		t.Errorf("аккаунт найден, аккаунт: %v", account)
 	}
+
 }
 
+func TestService_Reject_success(t *testing.T) {
+	// создаем сервис
+	s := newTestService()
 
+	_, payments, err := s.addAcoount(defaultTestAccount)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	payment := payments[0]
+	err = s.Reject(payment.ID)
+
+	if err != nil {
+		t.Errorf("Reject(): error = %v", err)
+		return
+	}
+
+	savedPayment, err := s.FindPaymentByID(payment.ID)
+	if err != nil {
+		t.Errorf("Reject(): cant find payment by id, error = %v", err)
+		return
+	}
+	if savedPayment.Status != types.PaymentStatusFail {
+		t.Errorf("Reject(): status didnt changed, payment = %v", savedPayment)
+		return
+	}
+
+	savedAccount, err := s.FindAccountByID(payment.AccountID)
+	if err != nil {
+		t.Errorf("Reject(): cant find account by id, error = %v", err)
+		return
+	}
+	if savedAccount.Balance != defaultTestAccount.balance {
+		t.Errorf("Reject(): balance didnt changed, balance = %v", savedAccount)
+		return
+	}
+}
 
 func TestService_Repeat_success(t *testing.T) {
-	svc := Service{}
-	svc.RegisterAccount("+99938151007")
 
-	account, err := svc.FindAccountByID(1)
+	s := newTestService()
+
+	_, payments, err := s.addAcoount(defaultTestAccount)
 	if err != nil {
-		t.Errorf("\ngot > %v \nwant > nil", err)
+		t.Error(err)
+		return
 	}
 
-	err = svc.Deposit(account.ID, 1000_00)
+	payment := payments[0]
+	newPayment, err := s.Repeat(payment.ID)
+
 	if err != nil {
-		t.Errorf("\ngot > %v \nwant > nil", err)
+		t.Errorf("Repeat(): error = %v", err)
+		return
 	}
 
-	payment, err := svc.Pay(account.ID, 100_00, "auto")
-	if err != nil {
-		t.Errorf("\ngot > %v \nwant > nil", err)
+	if newPayment.AccountID != payment.AccountID {
+		t.Errorf("Repeat(): error = %v", err)
+		return
 	}
 
-	pay, err := svc.FindPaymentByID(payment.ID)
-	if err != nil {
-		t.Errorf("\ngot > %v \nwant > nil", err)
+	if newPayment.Amount != payment.Amount {
+		t.Errorf("Repeat(): error = %v", err)
+		return
 	}
 
-	pay, err = svc.Repeat(pay.ID)
+	if newPayment.Category != payment.Category {
+		t.Errorf("Repeat(): error = %v", err)
+		return
+	}
+
+	if newPayment.Status != payment.Status {
+		t.Errorf("Repeat(): error = %v", err)
+		return
+	}
+
+}
+
+func TestService_FindFavoriteByID_succes(t *testing.T) {
+	s := newTestService()
+
+	_, payments, err := s.addAcoount(defaultTestAccount)
 	if err != nil {
-		t.Errorf("Repeat(): Error(): can't pay for an account(%v): %v", pay.ID, err)
+		t.Error(err)
+		return
+	}
+
+	payment := payments[0]
+	favorite, err := s.FavoritePayment(payment.ID, "ogastus")
+	if err != nil {
+		t.Errorf("favorite cant find, error = %v", err)
+	}
+
+	paymentFavorite, err := s.PayFromFavorite(favorite.ID)
+	if err != nil {
+		t.Errorf("PayFromFavorite() Error() can't for an favorite(%v), error = %v", paymentFavorite, err)
 	}
 }
 
-func TestService_Favorite_success_user(t *testing.T) {
-	svc := Service{}
+func TestService_Export_success(t *testing.T) {
+	s := newTestService()
 
-	account, err := svc.RegisterAccount("+992938151007")
+	_, payments, err := s.addAcoount(defaultTestAccount)
 	if err != nil {
-		t.Errorf("method RegisterAccount returned not nil error, account => %v", account)
+		t.Error(err)
+		return
 	}
 
-	err = svc.Deposit(account.ID, 100_00)
+	_, payments, err = s.addAcoount(testAccount{
+		phone:   "+992938151003",
+		balance: 10_000_00,
+		payments: []struct {
+			amount   types.Money
+			category types.PaymentCategory
+		}{{
+			amount:   1000_00,
+			category: "auto",
+		}},
+	})
 	if err != nil {
-		t.Errorf("method Deposit returned not nil error, error => %v", err)
+		t.Error(err)
+		return
 	}
 
-	payment, err := svc.Pay(account.ID, 10_00, "auto")
+	payment := payments[0]
+	favorite, err := s.FavoritePayment(payment.ID, "ogastus")
 	if err != nil {
-		t.Errorf("Pay() Error() can't pay for an account(%v): %v", account, err)
+		t.Errorf("cant find favorite, error = %v", err)
 	}
 
-	favorite, err := svc.FavoritePayment(payment.ID, "megafon")
+	paymentFavorite, err := s.PayFromFavorite(favorite.ID)
 	if err != nil {
-		t.Errorf("FavoritePayment() Error() can't for an favorite(%v): %v", favorite, err)
+		t.Errorf("PayFromFavorite() can't for an favorite(%v), error = %v", paymentFavorite, err)
 	}
 
-	paymentFavorite, err := svc.PayFromFavorite(favorite.ID)
+	err = s.Export("data")
 	if err != nil {
-		t.Errorf("PayFromFavorite() Error() can't for an favorite(%v): %v", paymentFavorite, err)
+		t.Errorf("Export() Error can't export error = %v", err)
 	}
 }
 
+func TestService_Import_success(t *testing.T) {
+	s := newTestService()
+
+	err := s.Import("data")
+
+	if err != nil {
+		t.Errorf("Import() Error can't import error = %v", err)
+	}
+}
+
+func TestService_HistoryToFiles_success(t *testing.T) {
+	s := newTestService()
+
+	_, _, err := s.addAcoount(defaultTestAccount)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	_, _, err = s.addAcoount(testAccount{
+		phone:   "+992938151008",
+		balance: 10_000_00,
+		payments: []struct {
+			amount   types.Money
+			category types.PaymentCategory
+		}{{
+			amount:   1000_00,
+			category: "auto",
+		}, {
+			amount:   1020_00,
+			category: "auto",
+		},
+			{
+				amount:   1030_00,
+				category: "auto",
+			}},
+	})
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	payments, err := s.ExportAccountHistory(2)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = s.HistoryToFiles(payments, "data", 2)
+	if err != nil {
+		t.Errorf("HistoryToFiles() Error can't export to file, error = %v", err)
+		return
+	}
+}
 
 func BenchmarkSumPayments(b *testing.B) {
 	s := newTestService()
 
-	_, _, err := s.addAccount(testAccount{
-		phone:   "+992935444994",
+	_, _, err := s.addAcoount(testAccount{
+		phone:   "+992938151002",
 		balance: 1000_000_00,
 		payments: []struct {
 			amount   types.Money
