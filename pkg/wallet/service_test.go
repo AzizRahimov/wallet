@@ -1,5 +1,6 @@
 package wallet
 
+
 import (
 	"fmt"
 	"github.com/AzizRahimov/wallet/pkg/types"
@@ -340,45 +341,49 @@ func BenchmarkSumPayments(b *testing.B) {
 
 	_, _, err := s.addAcoount(testAccount{
 		phone:   "+992938151002",
-		balance: 1000_000_00,
+		balance: 10_000,
 		payments: []struct {
 			amount   types.Money
 			category types.PaymentCategory
 		}{
 			{
-				amount:   1000_00,
+				amount:   100,
 				category: "auto",
 			},
 			{
-				amount:   2000_00,
+				amount:   200,
 				category: "auto",
 			},
 			{
-				amount:   3000_00,
+				amount:   300,
 				category: "auto",
 			},
 			{
-				amount:   4000_00,
+				amount:   400,
 				category: "auto",
 			},
 			{
-				amount:   5000_00,
+				amount:   500,
 				category: "auto",
 			},
 			{
-				amount:   6000_00,
+				amount:   600,
 				category: "auto",
 			},
 			{
-				amount:   1250_00,
+				amount:   100,
 				category: "auto",
 			},
 			{
-				amount:   1870_00,
+				amount:   100,
 				category: "auto",
 			},
 			{
-				amount:   9877_00,
+				amount:   100,
+				category: "auto",
+			},
+			{
+				amount: 100,
 				category: "auto",
 			},
 		},
@@ -389,12 +394,28 @@ func BenchmarkSumPayments(b *testing.B) {
 		return
 	}
 
-	want := types.Money(3399700)
+	want := types.Money(2500)
 
 	for i := 0; i < b.N; i++ {
-		result := s.SumPayments(6)
+		// на каждый горутине по 2 слайса
+		result := s.SumPayments(100)
 		if result != want {
 			b.Fatalf("invalid result, got = %v want = %v", result, want)
 		}
 	}
+}
+
+
+func TestService_SumPaymentsWithProgress(t *testing.T) {
+	s := newTestService()
+	for i := 0; i < 200_000; i++ {
+		payment := &types.Payment{
+			ID:     uuid.New().String(),
+			Amount: types.Money(100),
+		}
+		s.payments = append(s.payments, payment)
+	}
+
+	s.SumPaymentsWithProgress()
+	
 }
