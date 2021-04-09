@@ -43,7 +43,7 @@ func (s *Service) RegisterAccount(phone types.Phone) (*types.Account, error) {
 	for _, account := range s.accounts {
 		if account.Phone == phone {
 			return nil, ErrPhoneNumberRegistred
-		}
+		} 
 	}
 
 	s.nextAccountID++
@@ -74,7 +74,7 @@ func (s *Service) Deposit(accountID int64, amount types.Money) error {
 		return ErrAmountMustBePositive
 
 	}
-
+	// тут пустая структура  -> после чего мы добавим элементы - если ID есть
 	var account *types.Account
 
 
@@ -194,18 +194,28 @@ func (s *Service) Reject(paymentID string) error {
 
 
 func (s *Service) Repeat(paymentID string) (*types.Payment, error) {
+	// мы должны ID по которому будет транзакция 
 	pay, err := s.FindPaymentByID(paymentID)
 	if err != nil {
 		return nil, err
 	}
 
+	// ну и само собой -> 
+	// PAY - ЖЕ отминает и создает платеж, и поэтом думай, как он найдет
+
+	// как работает Pay?
+	// он находит в начале AccountID - 
+	// и у метода Pay есть, AccountID - сумма и какая категория
+	// допустим мы да
 	payment, err := s.Pay(pay.AccountID, pay.Amount, pay.Category)
 	if err != nil {
 		return nil, err
 	}
-
+	// И
 	return payment, nil
 }
+
+
 
 
 
@@ -291,8 +301,7 @@ func (s *Service) ExportToFile(path string) error  {
 
 
 func (s *Service) ImportFromFile(path string) error {
-
-
+	
 	byteData, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Println(err)
@@ -428,7 +437,7 @@ func WriteToFile(path string, data string)error  {
 	}()
 	// он возвращает кол-во байтов
 
-	_, err = file.WriteString(data)
+	_, err = file.WriteString(data)	
 	if err != nil {
 		log.Print(err)
 		return  err
@@ -702,10 +711,13 @@ func (s *Service) SumPayments(goroutines int) types.Money {
 		}(s.payments)
 	} else {
 		from := 0
-		count := len(s.payments) / goroutines
+		count := len(s.payments) / goroutines // разделили длинну платежей на горутины 6:3 = 2
+
+		// почему цикл 1??
 		for i := 1; i <= goroutines; i++ {
 			wg.Add(1)
-			last := len(s.payments) - i*count
+
+			last := len(s.payments) - i*count // длинна платежей 6 - 2 = 4
 			if i == goroutines {
 				last = 0
 			}
@@ -791,7 +803,7 @@ func (s *Service) FilterPayments(accountID int64, goroutines int) ([]types.Payme
 }
 
 func (s *Service) SumPaymentsWithProgress() <-chan types.Progress {
-	size := 100_0000
+	size := 1_000_000
 
 	amountOfMoney := make([]types.Money, 0)
 	for _, pay := range s.payments {
