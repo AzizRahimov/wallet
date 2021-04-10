@@ -24,6 +24,7 @@ type PAN string
 
 // представляют статусы 
 const  (
+	PaymentWork PaymentStatus = "work"
 	PaymentStatusOk PaymentStatus = "OK"
 	PaymentStatusFail PaymentStatus = "FAIL"
 	PaymentStatusInProgress PaymentStatus = "INPROGRESS"
