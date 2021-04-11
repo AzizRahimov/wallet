@@ -150,15 +150,20 @@ func (s *Service) Reject(paymentID string) error{
 	
 
 //
+
+
 func (s *Service) Repeat(paymentID string) (*types.Payment, error) {
-	payment, err := s.FindPaymentByID(paymentID)
-	if err != nil {
-		return nil, err
-	}
-	_, err = s.Pay(payment.AccountID, payment.Amount, payment.Category)
+	// мы должны ID по которому будет транзакция 
+	pay, err := s.FindPaymentByID(paymentID)
 	if err != nil {
 		return nil, err
 	}
 
+
+	payment, err := s.Pay(pay.AccountID, pay.Amount, pay.Category)
+	if err != nil {
+		return nil, err
+	}
+	
 	return payment, nil
 }

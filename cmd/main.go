@@ -23,14 +23,12 @@ func main() {
 		return
 	}
 	// он возращает лишь 1 же поле, а не слайс, чтобы ты еще и его перебирал
-	payment, err := svc.Pay(acc.ID, 500, "auto")
+	_, err = svc.Pay(acc.ID, 500, "auto")
 	if err != nil{
 		fmt.Println(err)
 		return
 	}
 
-	_, err = svc.Repeat(payment.ID)
-	fmt.Println(acc.Balance)
 
 	// s := &wallet.Service{}
 
