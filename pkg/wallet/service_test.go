@@ -260,4 +260,23 @@ func TestService_Repeat_success(t *testing.T) {
 }
 
 
+func TestService_FindFavoriteByID_succes(t *testing.T) {
+	s := newService()
 
+	_, payments, err := s.addAccount(defaultTestAccount)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	payment := payments[0]
+	favorite, err := s.FavoritePayment(payment.ID, "ogastus")
+	if err != nil {
+		t.Errorf("favorite cant find, error = %v", err)
+	}
+
+	paymentFavorite, err := s.PayFromFavorite(favorite.ID)
+	if err != nil {
+		t.Errorf("PayFromFavorite() Error() can't for an favorite(%v), error = %v", paymentFavorite, err)
+	}
+}

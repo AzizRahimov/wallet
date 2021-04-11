@@ -65,3 +65,4 @@ type Progress struct {
 	Part   int
 	Result Money
 }
+
