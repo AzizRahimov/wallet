@@ -11,6 +11,7 @@ import (
 func main() {
 	
 	svc := &wallet.Service{}
+	
 	acc, err := svc.RegisterAccount("+992938151007")
 	if err != nil {
 		fmt.Println(err)
@@ -22,33 +23,14 @@ func main() {
 		return
 	}
 	// он возращает лишь 1 же поле, а не слайс, чтобы ты еще и его перебирал
-	pays, err := svc.Pay(acc.ID, 500, "auto")
-	if err != nil{
-		fmt.Println(err)
-		return
-	}
-	
-	err = svc.Reject(pays.ID)
+	payment, err := svc.Pay(acc.ID, 500, "auto")
 	if err != nil{
 		fmt.Println(err)
 		return
 	}
 
+	_, err = svc.Repeat(payment.ID)
 	fmt.Println(acc.Balance)
-
-	
-
-
-
-
-
-
-
-
-
-
-
-
 
 	// s := &wallet.Service{}
 
