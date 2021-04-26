@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"sync"
 	"os"
 	"fmt"
 	"log"
@@ -579,4 +580,219 @@ func (s *Service) actionByFavorites(path string) error {
 	}
 
 	return nil
+}
+
+
+func (s *Service) ExportAccountHistory(accountID int64) ([]types.Payment, error) {
+	_, err := s.FindAccountByID(accountID)
+	if err != nil {
+		return nil, ErrAccountNotFound
+	}
+	accountPayments := []types.Payment{}
+
+	for _, payment := range s.payments {
+		if payment.AccountID == accountID {
+			accountPayments = append(accountPayments, types.Payment{
+				ID:        payment.ID,
+				AccountID: payment.AccountID,
+				Amount:    payment.Amount,
+				Category:  payment.Category,
+				Status:    payment.Status,
+			})
+		}
+	}
+
+	return accountPayments, nil
+}
+
+func (s *Service) HistoryToFiles(payments []types.Payment, dir string, records int) error {
+	if len(payments) == 0 {
+		return nil
+	}
+	if len(payments) <= records {
+		exportPayments(payments, dir+"/payments.dump")
+		return nil
+	}
+	var iterator int = 1
+	count := 0
+	for i := 1; i <= len(payments); i++ {
+		strIterator := strconv.Itoa(iterator)
+		fileName := dir + "/payments" + strIterator + ".dump"
+		if i == len(payments) && i-count != records {
+			exportPayments(payments[count:i], fileName)
+		}
+
+		if i-count == records {
+			exportPayments(payments[count:i], fileName)
+			count += records
+			iterator++
+		}
+	}
+	return nil
+}
+
+func exportPayments(payments []types.Payment, path string) error {
+	pay := ""
+
+	for _, payment := range payments {
+
+		pay += payment.ID + ";"
+		pay += strconv.Itoa(int(payment.AccountID)) + ";"
+		pay += strconv.Itoa(int(payment.Amount)) + ";"
+		pay += string(payment.Category) + ";"
+		pay += string(payment.Status) + ";"
+		pay += "\n"
+	}
+	err := WriteToFile(path, pay)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+	return nil
+}
+
+
+func (s *Service) SumPayments(goroutines int) types.Money {
+	wg := sync.WaitGroup{}
+	mu := sync.Mutex{}
+	var summ types.Money = 0
+	// мы дали 6, значит 1 часть не будет работать, там же сказано, если 1 или 0 то дополнительных
+	// результатов не требуеются
+	//
+	if goroutines == 0 || goroutines == 1 {
+		wg.Add(1)
+		go func(payments []*types.Payment) {
+			defer wg.Done()
+			for _, payment := range payments {
+				summ += payment.Amount
+			}
+		}(s.payments)
+	} else {
+		from := 0
+		count := len(s.payments) / goroutines // разделили длинну платежей на горутины 6:3 = 2
+
+		// почему цикл 1??
+		for i := 1; i <= goroutines; i++ {
+			wg.Add(1)
+
+			last := len(s.payments) - i*count // длинна платежей 6 - 2 = 4
+			if i == goroutines {
+				last = 0
+			}
+			to := len(s.payments) - last
+			go func(payments []*types.Payment) {
+				defer wg.Done()
+				s := types.Money(0)
+				for _, payment := range payments {
+					s += payment.Amount
+				}
+				mu.Lock()
+				defer mu.Unlock()
+				summ += s
+			}(s.payments[from:to])
+			from += count
+		}
+	}
+
+	wg.Wait()
+
+	return summ
+}
+
+func (s *Service) FilterPayments(accountID int64, goroutines int) ([]types.Payment, error) {
+	filteredPayments := []types.Payment{}
+	wg := sync.WaitGroup{}
+	mu := sync.Mutex{}
+	if goroutines == 0 || goroutines == 1 {
+		wg.Add(1)
+		go func(payments []*types.Payment) {
+			defer wg.Done()
+			for _, payment := range payments {
+				if payment.AccountID == accountID {
+					filteredPayments = append(filteredPayments, types.Payment{
+						ID:        payment.ID,
+						AccountID: payment.AccountID,
+						Amount:    payment.Amount,
+						Category:  payment.Category,
+						Status:    payment.Status,
+					})
+				}
+			}
+		}(s.payments)
+	} else {
+		from := 0
+		count := len(s.payments) / goroutines
+		for i := 1; i <= goroutines; i++ {
+			wg.Add(1)
+			last := len(s.payments) - i*count
+			if i == goroutines {
+				last = 0
+			}
+			to := len(s.payments) - last
+			go func(payments []*types.Payment) {
+				defer wg.Done()
+				separetePayments := []types.Payment{}
+				for _, payment := range payments {
+					if payment.AccountID == accountID {
+						separetePayments = append(separetePayments, types.Payment{
+							ID:        payment.ID,
+							AccountID: payment.AccountID,
+							Amount:    payment.Amount,
+							Category:  payment.Category,
+							Status:    payment.Status,
+						})
+					}
+				}
+				mu.Lock()
+				defer mu.Unlock()
+				filteredPayments = append(filteredPayments, separetePayments...)
+			}(s.payments[from:to])
+			from += count
+		}
+	}
+
+	wg.Wait()
+
+	if len(filteredPayments) == 0 {
+		return nil, ErrAccountNotFound
+	}
+
+	return filteredPayments, nil
+}
+
+func (s *Service) SumPaymentsWithProgress() <-chan types.Progress {
+	size := 1_000_000
+
+	amountOfMoney := make([]types.Money, 0)
+	for _, pay := range s.payments {
+		amountOfMoney = append(amountOfMoney, pay.Amount)
+	}
+
+	wg := sync.WaitGroup{}
+	goroutines := (len(amountOfMoney) + 1) / size
+	ch := make(chan types.Progress)
+	if goroutines <= 0 {
+		goroutines = 1
+	}
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func(ch chan<- types.Progress, amountOfMoney []types.Money, part int) {
+			sum := 0
+			defer wg.Done()
+			for _, val := range amountOfMoney {
+				sum += int(val)
+
+			}
+			ch <- types.Progress{
+				Result: types.Money(sum),
+			}
+		}(ch, amountOfMoney, i)
+	}
+
+	go func() {
+		defer close(ch)
+		wg.Wait()
+	}()
+
+	return ch
 }
